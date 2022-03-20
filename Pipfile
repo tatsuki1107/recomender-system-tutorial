@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 fastfm = "*"
+numpy = "*"
+scipy = "*"
 
 [dev-packages]
 
