@@ -2,6 +2,7 @@ import argparse
 import os
 import numpy as np
 from scipy.sparse import csc_matrix
+from sklearn.metrics import mean_squared_error
 from fastFM import als
 
 
@@ -17,7 +18,7 @@ class ExplicitFeedback(object):
     def __init__(self, user_id, item_id, rating, timestamp):
         self.user_id = user_id
         self.item_id = item_id
-        self.rating = rating
+        self.rating = int(rating)
         self.timstamp = timestamp
 
 
@@ -26,22 +27,33 @@ class Encoder(object):
     def __init__(self):
         self.id2index = {}
 
-    def get_Xy(self, filename):
+    def get_Xy(self, filename, test=False):
         rows, cols, data = [], [], []
         y = []
         for i, feedback in enumerate(iter_feedbacks(filename)):
-            j = self.id2index.setdefault('user-' + feedback.user_id)
-            rows.append(i)
-            cols.append(j)
-            data.append(1)
-            j = self.id2index.setdefault('item-' + feedback.item_id)
-            rows.append(i)
-            cols.append(j)
-            data.append(1)
+            j = self._get_index('user-' + feedback.user_id, test)
+            if j is not None:
+                rows.append(i)
+                cols.append(j)
+                data.append(1)
+            j = self._get_index('item-' + feedback.item_id, test)
+            if j is not None:
+                rows.append(i)
+                cols.append(j)
+                data.append(1)
             y.append(feedback.rating)
-        X = csc_matrix((data, (rows, cols)), shape=(i, len(self.id2index)))
+        X = csc_matrix((data, (rows, cols)), shape=(i + 1, len(self.id2index)))
         y = np.array(y)
         return X, y
+
+    def _get_index(self, key, test=False):
+        if test:
+            if key in self.id2index:
+                return self.id2index[key]
+            else:
+                return None
+        else:
+            return self.id2index.setdefault(key, len(self.id2index))
 
 
 def main(args):
@@ -50,9 +62,13 @@ def main(args):
     fm = als.FMRegression(random_state=args.random_state)
     fm.fit(X, y)
 
-    x_test, y_test = encoder.get_Xy(os.path.join(args.in_dir, 'ua.test'))
+    x_test, y_test = encoder.get_Xy(
+        os.path.join(args.in_dir, 'ua.test'), test=True)
     y_pred = fm.predict(x_test)
-    print(np.c_[y, y_pred][:10])
+    print(np.c_[y_test, y_pred][:10])
+
+    mse = mean_squared_error(y_test, y_pred)
+    print(f'RMSE: {np.sqrt(mse)}')
 
 
 def get_parser():
