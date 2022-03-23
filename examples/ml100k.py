@@ -5,7 +5,6 @@ from scipy.sparse import csc_matrix
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold, GridSearchCV
 from fastFM import als
-from sklearn.utils import shuffle
 
 
 def iter_feedbacks(filename):
