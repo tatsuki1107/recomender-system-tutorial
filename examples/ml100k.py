@@ -3,7 +3,9 @@ import os
 import numpy as np
 from scipy.sparse import csc_matrix
 from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import KFold, GridSearchCV
 from fastFM import als
+from sklearn.utils import shuffle
 
 
 def iter_feedbacks(filename):
@@ -60,7 +62,16 @@ def main(args):
     encoder = Encoder()
     X, y = encoder.get_Xy(os.path.join(args.in_dir, 'ua.base'))
     fm = als.FMRegression(random_state=args.random_state)
-    fm.fit(X, y)
+
+    # cross-validation
+    param_grid = {
+        'rank': [2, 4, 8, 16]
+    }
+    cv = KFold(n_splits=5, shuffle=True, random_state=args.random_state)
+    gs = GridSearchCV(
+        fm, param_grid, scoring='neg_mean_squared_error', cv=cv)
+    gs.fit(X, y)
+    fm = gs.best_estimator_
 
     x_test, y_test = encoder.get_Xy(
         os.path.join(args.in_dir, 'ua.test'), test=True)
